@@ -1,5 +1,29 @@
 import torch
-import cv2
+try:
+    import cv2
+except ImportError:  # pragma: no cover - OpenCV not available in minimal environments
+    cv2 = None
+import os
+import numpy as np
+from PIL import Image
+import io
+import cairosvg
+
+
+ASSET_DIR = os.path.join(os.path.dirname(__file__), 'assets')
+TILE_SIZE = 32
+
+
+def load_svg_image(name, size=TILE_SIZE):
+    path = os.path.join(ASSET_DIR, name)
+    png_data = cairosvg.svg2png(url=path, output_width=size, output_height=size)
+    return Image.open(io.BytesIO(png_data)).convert('RGBA')
+
+
+BACKGROUND_IMG = load_svg_image('background.svg')
+OBSTACLE_IMG = load_svg_image('obstacle.svg')
+BIRD_IMG = load_svg_image('bird.svg')
+REWARD_IMG = load_svg_image('reward.svg')
 
 
 class BlockRun:
@@ -70,11 +94,22 @@ class BlockRun:
         return view
 
 def map_view_to_image(view):
-    image = torch.zeros((view.shape[1], view.shape[2], 3), dtype=torch.uint8)
-    image[view[1]] = torch.tensor([255, 255, 255], dtype=torch.uint8)
-    image[view[2]] = torch.tensor([0, 255, 0], dtype=torch.uint8)
-    image[view[0]] = torch.tensor([255, 0, 0], dtype=torch.uint8)
-    return image
+    width = view.shape[1]
+    height = view.shape[2]
+    canvas = Image.new('RGBA', (width * TILE_SIZE, height * TILE_SIZE))
+    for x in range(width):
+        for y in range(height):
+            pos = (x * TILE_SIZE, y * TILE_SIZE)
+            canvas.paste(BACKGROUND_IMG, pos, BACKGROUND_IMG)
+            if view[BlockRun.OBSTACLE, x, y]:
+                canvas.paste(OBSTACLE_IMG, pos, OBSTACLE_IMG)
+            if view[BlockRun.REWARD, x, y]:
+                canvas.paste(REWARD_IMG, pos, REWARD_IMG)
+            if view[BlockRun.POSITION, x, y]:
+                canvas.paste(BIRD_IMG, pos, BIRD_IMG)
+    np_img = np.array(canvas.convert('RGB'), dtype=np.uint8)
+    np_img = np.transpose(np_img, (1, 0, 2))
+    return torch.from_numpy(np_img)
 
 def visualize_course():
     import matplotlib.pyplot as plt
