@@ -96,7 +96,7 @@ def play_game():
     while True:
         view = block_run.render()
         key = visualize(view)
-        while chr(key) not in keymap:
+        while key == -1 or chr(key) not in keymap:
             key = cv2.waitKey(1)
         action = keymap[chr(key)]
         block_run.step(action)
