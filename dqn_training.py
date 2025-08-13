@@ -41,6 +41,7 @@ class ReplayBuffer:
 
 def train(should_visualize=False):
     q_network = QNetwork().cuda()
+    q_network.state_dict(torch.load('q_network.pt'))
     target_network = QNetwork().cuda()
 
     block_run = BlockRun(2_000_000)
@@ -71,7 +72,7 @@ def train(should_visualize=False):
         loss = loss_fn(q_values, target_q_values)
         optimizer.zero_grad()
         # Loss clipping
-        # loss = torch.clamp(loss, -1, 1)
+        loss = torch.clamp(loss, -1, 1)
         loss.backward()
         optimizer.step()
         if should_visualize:
